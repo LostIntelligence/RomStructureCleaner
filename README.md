@@ -1,18 +1,13 @@
-## Getting Started
+# ROM Structure Cleaner
 
-Welcome to the VS Code Java world. Here is a guideline to help you get started to write Java code in Visual Studio Code.
+## What is this Programm?
 
-## Folder Structure
+This is a Java program designed to be run against a preset ROM structure. It cleans up any files that do not belong in a ROM folder or its subfolders, and it unpacks compressed ROMs (this can be disabled in the configuration).
+Generally, it tries to convert a given ROM structure into one that is compatible with the [RomM](https://github.com/rommapp/romm) ROM manager.
+Files that do not have any extension will prompt a command line input to either rename, skip or delete.
 
-The workspace contains two folders by default, where:
+## Config
 
-- `src`: the folder to maintain sources
-- `lib`: the folder to maintain dependencies
-
-Meanwhile, the compiled output files will be generated in the `bin` folder by default.
-
-> If you want to customize the folder structure, open `.vscode/settings.json` and update the related settings there.
-
-## Dependency Management
-
-The `JAVA PROJECTS` view allows you to manage your dependencies. More details can be found [here](https://github.com/microsoft/vscode-java-dependency#manage-dependencies).
+In the configuration, systems and file extensions of ROM files are set. An alias can be set so that the programm can work with alternative system names.
+The programm will label all 'systems' that aren't in its configuration with a tag, which can also be configured via the configuration, and skip them during 'junk' file removal.
+The Zip policy per system can either be set to 'forbid' which means the programm will try to unzipp and remove all zips or allowed in which case the programm will leave all zip files with roms inside alone, no matter what zip files not containing roms will be removed.

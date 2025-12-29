@@ -17,8 +17,7 @@ public class RomCleaner {
 
     // Multi-file game subfolders per RomM spec
     static final Set<String> multiFileFolders = Set.of(
-            "dlc","hack","manual","mod","patch","update","demo","translation","prototype"
-    );
+            "dlc", "hack", "manual", "mod", "patch", "update", "demo", "translation", "prototype");
 
     public static void main(String[] args) throws Exception {
         config = new ObjectMapper().readValue(new File("config.json"), Config.class);
@@ -35,58 +34,65 @@ public class RomCleaner {
     }
 
     static void processSystemFolder(Path dir) throws IOException {
-        final Path systemDir = resolveSystemDirectory(dir);
 
-        String systemKey = systemDir.getFileName().toString().toLowerCase();
-        SystemConfig sys = config.systems.get(systemKey);
+    // Step 1: normalize folder name (case handling)
+    Path resolvedDir = resolveSystemDirectory(dir);
 
-        if (sys == null) {
-            tagUnknownSystem(systemDir);
-            return;
+    String folderName = resolvedDir.getFileName().toString().toLowerCase();
+    String resolvedKey = resolveSystemKey(folderName);
+
+    SystemConfig sys = config.systems.get(resolvedKey);
+
+    if (sys == null) {
+        tagUnknownSystem(resolvedDir);
+        return;
+    }
+
+    resolvedDir = tagAliasedSystemIfNeeded(resolvedDir, resolvedKey);
+    final Path systemDir = resolvedDir;
+    Files.walkFileTree(systemDir, new SimpleFileVisitor<>() {
+
+        @Override
+        public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+            if (!dir.equals(systemDir) && isStructuredGameFolder(dir, sys)) {
+                log("Skipping structured multi-file game folder: " + dir);
+                return FileVisitResult.SKIP_SUBTREE;
+            }
+            return FileVisitResult.CONTINUE;
         }
 
-        Files.walkFileTree(systemDir, new SimpleFileVisitor<>() {
-
-            @Override
-            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
-                if (!dir.equals(systemDir) && isStructuredGameFolder(dir, sys)) {
-                    log("Skipping structured multi-file game folder: " + dir);
-                    return FileVisitResult.SKIP_SUBTREE;
-                }
+        @Override
+        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+            if (file.getParent().equals(systemDir))
                 return FileVisitResult.CONTINUE;
+
+            String ext = ext(file);
+
+            if (ext.equals("zip")) {
+                handleZip(file, systemDir, sys);
+            } else if (ext.isEmpty()) {
+                handleNoExtension(file);
+            } else if (!sys.extensions.contains(ext)) {
+                delete(file, "Invalid extension");
+            } else {
+                moveRom(file, systemDir, sys);
             }
+            return FileVisitResult.CONTINUE;
+        }
 
-            @Override
-            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                if (file.getParent().equals(systemDir))
-                    return FileVisitResult.CONTINUE;
-
-                String ext = ext(file);
-
-                if (ext.equals("zip")) {
-                    handleZip(file, systemDir, sys);
-                } else if (ext.isEmpty()) {
-                    handleNoExtension(file);
-                } else if (!sys.extensions.contains(ext)) {
-                    delete(file, "Invalid extension");
-                } else {
-                    moveRom(file, systemDir, sys);
-                }
-                return FileVisitResult.CONTINUE;
-            }
-
-            @Override
-            public FileVisitResult postVisitDirectory(Path d, IOException exc) throws IOException {
-                if (!d.equals(systemDir) && isEmpty(d))
-                    delete(d, "Empty directory");
-                return FileVisitResult.CONTINUE;
-            }
-        });
-    }
+        @Override
+        public FileVisitResult postVisitDirectory(Path d, IOException exc) throws IOException {
+            if (!d.equals(systemDir) && isEmpty(d))
+                delete(d, "Empty directory");
+            return FileVisitResult.CONTINUE;
+        }
+    });
+}
 
     // ===== Multi-file game detection =====
     static boolean isStructuredGameFolder(Path folder, SystemConfig sys) throws IOException {
-        if (!Files.isDirectory(folder)) return false;
+        if (!Files.isDirectory(folder))
+            return false;
 
         boolean hasSubfolders = false;
         boolean hasRootRom = false;
@@ -123,9 +129,12 @@ public class RomCleaner {
         List<ZipEntry> junk = new ArrayList<>();
 
         for (ZipEntry e : Collections.list(zf.entries())) {
-            if (e.isDirectory()) continue;
-            if (sys.extensions.contains(ext(e.getName()))) roms.add(e);
-            else junk.add(e);
+            if (e.isDirectory())
+                continue;
+            if (sys.extensions.contains(ext(e.getName())))
+                roms.add(e);
+            else
+                junk.add(e);
         }
 
         if (roms.isEmpty()) {
@@ -151,7 +160,7 @@ public class RomCleaner {
     }
 
     static void promptZipDecision(Path zip, ZipFile zf, List<ZipEntry> roms,
-                                  Path target, SystemConfig sys) throws IOException {
+            Path target, SystemConfig sys) throws IOException {
         System.out.println("\nZIP ambiguity: " + zip);
         System.out.print("[E]xtract / [K]eep / [D]elete: ");
         String c = in.nextLine().toLowerCase();
@@ -162,7 +171,7 @@ public class RomCleaner {
     }
 
     static void extract(ZipFile zf, List<ZipEntry> roms,
-                        Path target, SystemConfig sys) throws IOException {
+            Path target, SystemConfig sys) throws IOException {
         for (ZipEntry e : roms) {
             Path out = resolveDup(target.resolve(cleanName(e.getName(), sys)));
             try (InputStream is = zf.getInputStream(e)) {
@@ -262,7 +271,7 @@ public class RomCleaner {
         log.newLine();
         log.flush();
     }
-    
+
     static Path resolveSystemDirectory(Path dir) throws IOException {
         String name = dir.getFileName().toString();
         String lower = name.toLowerCase();
@@ -277,12 +286,46 @@ public class RomCleaner {
         return dir;
     }
 
+    static String resolveSystemKey(String folderName) {
+        String key = folderName.toLowerCase();
+        if (config.aliases.containsKey(key))
+            return config.aliases.get(key);
+        return key;
+    }
+
+    static Path tagAliasedSystemIfNeeded(Path systemDir, String resolvedKey) throws IOException {
+        String folderName = systemDir.getFileName().toString().toLowerCase();
+
+        // Already canonical → nothing to do
+        if (folderName.equals(resolvedKey))
+            return systemDir;
+
+        // Already tagged → avoid infinite renames
+        if (folderName.contains(config.aliasSystemTag))
+            return systemDir;
+
+        // Build tagged name: original_needsRename_canonical
+        String taggedName = folderName
+                + config.aliasSystemTag
+                + "_" + resolvedKey;
+
+        Path taggedDir = systemDir.resolveSibling(taggedName);
+
+        if (!config.dryRun)
+            Files.move(systemDir, taggedDir);
+
+        log("Tagged aliased system folder: " + systemDir + " → " + taggedDir);
+
+        return taggedDir;
+    }
+
     // ===== CONFIG =====
     static class Config {
         public boolean dryRun;
         public String rootPath;
         public String logFile;
         public String unknownSystemTag;
+        public String aliasSystemTag;
         public boolean forceLowercaseFolders;
         public Map<String, SystemConfig> systems;
         public Map<String, String> aliases;

@@ -1,6 +1,7 @@
 {
   "forceLowercaseFolders": true,
   "unknownSystemTag": "_missingSystemInfo",
+  "aliasSystemTag": "_needsRename",
   "rootPath": "F:/roms",
   "logFile": "F:/romcleaner.log",
   "dryRun": true,

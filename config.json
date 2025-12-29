@@ -22,13 +22,95 @@
     "to8": "thomson-mo-to",
     "thomson": "thomson-mo-to",
     "vmac": "macintosh",
-    "wolf": "wolf3d",
     "wonderswancolor": "wonderswan-color"
   },
   "systems": {
     "nes": {
       "extensions": [
         "nes"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "turbografx16": {
+      "extensions": [
+        "pce"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "turbografxcd": {
+      "extensions": [
+        "cue",
+        "bin",
+        "iso",
+        "chd"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "sufami-turbo": {
+      "extensions": [
+        "st"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "sharp-x68000": {
+      "extensions": [
+        "dim",
+        "img",
+        "d88",
+        "hdm",
+        "hdf"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "wonderswan": {
+      "extensions": [
+        "ws"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "wonderswan-color": {
+      "extensions": [
+        "wsc"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "vic20": {
+      "extensions": [
+        "prg",
+        "d64",
+        "tap"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "trs-80": {
+      "extensions": [
+        "dsk",
+        "cmd",
+        "cas"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "thomson-mo-to": {
+      "extensions": [
+        "fd",
+        "sap"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "macintosh": {
+      "extensions": [
+        "dsk",
+        "img",
+        "hda"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "zxspectrum": {
+      "extensions": [
+        "tzx",
+        "tap",
+        "z80",
+        "sna"
       ],
       "zipPolicy": "forbid"
     },

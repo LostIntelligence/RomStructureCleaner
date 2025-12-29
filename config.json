@@ -10,7 +10,20 @@
     "ps1": "psx",
     "playstation": "psx",
     "md": "genesis",
-    "megadrive": "genesis"
+    "megadrive": "genesis",
+    "tg16": "turbografx16",
+    "turbografx": "turbografx16",
+    "tg-cd": "turbografxcd",
+    "sufami": "sufami-turbo",
+    "x68000": "sharp-x68000",
+    "zxspectrum": "zxspectrum",
+    "vic20": "vic20",
+    "trs-80": "trs-80",
+    "to8": "thomson-mo-to",
+    "thomson": "thomson-mo-to",
+    "vmac": "macintosh",
+    "wolf": "wolf3d",
+    "wonderswancolor": "wonderswan-color"
   },
   "systems": {
     "nes": {

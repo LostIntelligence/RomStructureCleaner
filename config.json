@@ -1,0 +1,364 @@
+{
+  "forceLowercaseFolders": true,
+  "unknownSystemTag": "_missingSystemInfo",
+  "rootPath": "F:/roms",
+  "logFile": "F:/romcleaner.log",
+  "dryRun": true,
+  "aliases": {
+    "sfc": "snes",
+    "super-famicom": "snes",
+    "ps1": "psx",
+    "playstation": "psx",
+    "md": "genesis",
+    "megadrive": "genesis"
+  },
+  "systems": {
+    "nes": {
+      "extensions": [
+        "nes"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "snes": {
+      "extensions": [
+        "smc",
+        "sfc",
+        "fig"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "n64": {
+      "extensions": [
+        "z64",
+        "n64",
+        "v64"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "gb": {
+      "extensions": [
+        "gb"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "gbc": {
+      "extensions": [
+        "gbc"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "gba": {
+      "extensions": [
+        "gba"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "genesis": {
+      "extensions": [
+        "gen",
+        "md",
+        "bin"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "mastersystem": {
+      "extensions": [
+        "sms"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "gamegear": {
+      "extensions": [
+        "gg"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "pce": {
+      "extensions": [
+        "pce"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "lynx": {
+      "extensions": [
+        "lnx"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "coleco": {
+      "extensions": [
+        "col"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "atari2600": {
+      "extensions": [
+        "a26"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "atari5200": {
+      "extensions": [
+        "a52"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "atari7800": {
+      "extensions": [
+        "a78"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "nds": {
+      "extensions": [
+        "nds"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "3ds": {
+      "extensions": [
+        "3ds",
+        "cia"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "psp": {
+      "extensions": [
+        "iso",
+        "cso",
+        "pbp"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "vita": {
+      "extensions": [
+        "vpk"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "psx": {
+      "extensions": [
+        "bin",
+        "cue",
+        "iso",
+        "chd",
+        "pbp"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "ps2": {
+      "extensions": [
+        "iso",
+        "bin",
+        "chd"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "ps3": {
+      "extensions": [
+        "iso"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "saturn": {
+      "extensions": [
+        "bin",
+        "cue",
+        "iso",
+        "chd"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "dreamcast": {
+      "extensions": [
+        "gdi",
+        "cdi",
+        "chd"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "segacd": {
+      "extensions": [
+        "bin",
+        "cue",
+        "iso",
+        "chd"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "pcfx": {
+      "extensions": [
+        "bin",
+        "cue",
+        "chd"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "mame": {
+      "extensions": [
+        "zip"
+      ],
+      "zipPolicy": "require"
+    },
+    "neogeo": {
+      "extensions": [
+        "zip"
+      ],
+      "zipPolicy": "require"
+    },
+    "fbneo": {
+      "extensions": [
+        "zip"
+      ],
+      "zipPolicy": "require"
+    },
+    "wii": {
+      "extensions": [
+        "iso",
+        "wbfs"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "wiiu": {
+      "extensions": [
+        "wud",
+        "wux",
+        "wua",
+        "iso"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "switch": {
+      "extensions": [
+        "xci",
+        "nsp"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "android": {
+      "extensions": [
+        "apk"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "doom": {
+      "extensions": [
+        "wad",
+        "pk3"
+      ],
+      "zipPolicy": "allow"
+    },
+    "3do": {
+      "extensions": [
+        "iso",
+        "cue",
+        "bin"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "amiga": {
+      "extensions": [
+        "adf",
+        "ipf"
+      ],
+      "zipPolicy": "allow"
+    },
+    "amstradcpc": {
+      "extensions": [
+        "dsk",
+        "bin"
+      ],
+      "zipPolicy": "allow"
+    },
+    "apple2": {
+      "extensions": [
+        "dsk",
+        "2mg"
+      ],
+      "zipPolicy": "allow"
+    },
+    "apple2gs": {
+      "extensions": [
+        "dsk",
+        "2mg"
+      ],
+      "zipPolicy": "allow"
+    },
+    "arcade": {
+      "extensions": [
+        "zip"
+      ],
+      "zipPolicy": "require"
+    },
+    "atarilynx": {
+      "extensions": [
+        "lnx"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "atarijaguar": {
+      "extensions": [
+        "j64",
+        "rom"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "atarijaguarcd": {
+      "extensions": [
+        "iso",
+        "bin",
+        "cue",
+        "chd"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "atarist": {
+      "extensions": [
+        "st",
+        "stx"
+      ],
+      "zipPolicy": "allow"
+    },
+    "dos": {
+      "extensions": [
+        "zip"
+      ],
+      "zipPolicy": "allow"
+    },
+    "msx": {
+      "extensions": [
+        "rom",
+        "dsk"
+      ],
+      "zipPolicy": "allow"
+    },
+    "xbox": {
+      "extensions": [
+        "iso",
+        "xiso"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "xbox360": {
+      "extensions": [
+        "iso",
+        "dvd"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "xboxone": {
+      "extensions": [
+        "xvd",
+        "iso"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "c64": {
+      "extensions": [
+        "d64",
+        "t64"
+      ],
+      "zipPolicy": "allow"
+    }
+  }
+}

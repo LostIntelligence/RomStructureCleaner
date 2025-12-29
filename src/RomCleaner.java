@@ -15,6 +15,11 @@ public class RomCleaner {
     static BufferedWriter log;
     static Scanner in = new Scanner(System.in);
 
+    // Multi-file game subfolders per RomM spec
+    static final Set<String> multiFileFolders = Set.of(
+            "dlc","hack","manual","mod","patch","update","demo","translation","prototype"
+    );
+
     public static void main(String[] args) throws Exception {
         config = new ObjectMapper().readValue(new File("config.json"), Config.class);
         log = Files.newBufferedWriter(Paths.get(config.logFile),
@@ -32,8 +37,7 @@ public class RomCleaner {
     static void processSystemFolder(Path dir) throws IOException {
         final Path systemDir = resolveSystemDirectory(dir);
 
-        String folderName = systemDir.getFileName().toString();
-        String systemKey = normalizeSystemName(folderName);
+        String systemKey = systemDir.getFileName().toString().toLowerCase();
         SystemConfig sys = config.systems.get(systemKey);
 
         if (sys == null) {
@@ -41,44 +45,65 @@ public class RomCleaner {
             return;
         }
 
-        // Rename folder if normalized name differs
-        if (!folderName.equals(systemKey)) {
-            Path renamed = systemDir.resolveSibling(systemKey);
-            if (!config.dryRun) Files.move(systemDir, renamed);
-            log("Renamed system folder: " + systemDir + " → " + renamed);
-        }
+        Files.walkFileTree(systemDir, new SimpleFileVisitor<>() {
 
-        final SystemConfig finalSys = sys;
-        final Path finalSystemDir = systemDir.resolveSibling(systemKey);
-
-        Files.walkFileTree(finalSystemDir, new SimpleFileVisitor<>() {
+            @Override
+            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+                if (!dir.equals(systemDir) && isStructuredGameFolder(dir, sys)) {
+                    log("Skipping structured multi-file game folder: " + dir);
+                    return FileVisitResult.SKIP_SUBTREE;
+                }
+                return FileVisitResult.CONTINUE;
+            }
 
             @Override
             public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                if (file.getParent().equals(finalSystemDir))
+                if (file.getParent().equals(systemDir))
                     return FileVisitResult.CONTINUE;
 
                 String ext = ext(file);
 
                 if (ext.equals("zip")) {
-                    handleZip(file, finalSystemDir, finalSys);
+                    handleZip(file, systemDir, sys);
                 } else if (ext.isEmpty()) {
                     handleNoExtension(file);
-                } else if (!finalSys.extensions.contains(ext)) {
+                } else if (!sys.extensions.contains(ext)) {
                     delete(file, "Invalid extension");
                 } else {
-                    moveRom(file, finalSystemDir, finalSys);
+                    moveRom(file, systemDir, sys);
                 }
                 return FileVisitResult.CONTINUE;
             }
 
             @Override
             public FileVisitResult postVisitDirectory(Path d, IOException exc) throws IOException {
-                if (!d.equals(finalSystemDir) && isEmpty(d))
+                if (!d.equals(systemDir) && isEmpty(d))
                     delete(d, "Empty directory");
                 return FileVisitResult.CONTINUE;
             }
         });
+    }
+
+    // ===== Multi-file game detection =====
+    static boolean isStructuredGameFolder(Path folder, SystemConfig sys) throws IOException {
+        if (!Files.isDirectory(folder)) return false;
+
+        boolean hasSubfolders = false;
+        boolean hasRootRom = false;
+
+        try (DirectoryStream<Path> ds = Files.newDirectoryStream(folder)) {
+            for (Path p : ds) {
+                String name = p.getFileName().toString().toLowerCase();
+                if (Files.isDirectory(p) && multiFileFolders.contains(name)) {
+                    hasSubfolders = true;
+                }
+                if (Files.isRegularFile(p) && sys.extensions.contains(ext(p))) {
+                    hasRootRom = true;
+                }
+            }
+        }
+
+        return hasSubfolders && hasRootRom;
     }
 
     // ===== ZIP HANDLING =====
@@ -87,8 +112,8 @@ public class RomCleaner {
         try {
             zf = new ZipFile(zip.toFile());
         } catch (ZipException e) {
-            log("Corrupt or invalid ZIP: " + zip + " (" + e.getMessage() + ")");
-            if ("forbid".equals(sys.zipPolicy) || "extract".equals(sys.zipPolicy)) {
+            log("Corrupt or invalid ZIP skipped: " + zip + " (" + e.getMessage() + ")");
+            if (sys.zipPolicy.equals("forbid") || sys.zipPolicy.equals("extract")) {
                 delete(zip, "Invalid ZIP (policy forbids ZIP)");
             }
             return;
@@ -141,7 +166,7 @@ public class RomCleaner {
         for (ZipEntry e : roms) {
             Path out = resolveDup(target.resolve(cleanName(e.getName(), sys)));
             try (InputStream is = zf.getInputStream(e)) {
-                Files.copy(is, out, StandardCopyOption.REPLACE_EXISTING);
+                Files.copy(is, out);
             }
             log("Extracted: " + out);
         }
@@ -159,14 +184,12 @@ public class RomCleaner {
 
     static String cleanName(String name, SystemConfig sys) {
         int dot = name.lastIndexOf('.');
-        if (dot < 0) dot = name.length();
         String base = name.substring(0, dot)
                 .replace('_', ' ')
                 .replaceAll("\\[.*?]", "")
                 .replaceAll("\\s+", " ")
                 .trim();
-        String extPart = dot < name.length() ? name.substring(dot).toLowerCase() : "";
-        return titleCase(base) + extPart;
+        return titleCase(base) + name.substring(dot).toLowerCase();
     }
 
     // ===== UTIL =====
@@ -239,10 +262,11 @@ public class RomCleaner {
         log.newLine();
         log.flush();
     }
-
+    
     static Path resolveSystemDirectory(Path dir) throws IOException {
         String name = dir.getFileName().toString();
         String lower = name.toLowerCase();
+
         if (config.forceLowercaseFolders && !name.equals(lower)) {
             Path lowerDir = dir.resolveSibling(lower);
             if (!config.dryRun)
@@ -251,12 +275,6 @@ public class RomCleaner {
             return lowerDir;
         }
         return dir;
-    }
-
-    // ===== NEW: normalize system name using aliases =====
-    static String normalizeSystemName(String raw) {
-        String lower = raw.toLowerCase();
-        return config.aliases != null ? config.aliases.getOrDefault(lower, lower) : lower;
     }
 
     // ===== CONFIG =====
@@ -275,5 +293,4 @@ public class RomCleaner {
         public String zipPolicy;
         public boolean rommNaming;
     }
-    
 }

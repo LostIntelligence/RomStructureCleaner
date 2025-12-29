@@ -16,6 +16,7 @@ Files without a file extension will prompt a command-line decision to **rename**
 Because this program **moves and deletes files**, it should always be run against a **test copy** of your ROM collection.
 
 For additional safety:
+
 - Run with `"dryRun": true` in the configuration
 - Review the generated log file carefully
 - Only disable dry-run once you are confident no unintended mass deletions will occur
@@ -38,6 +39,7 @@ Each top-level folder under `rootPath` is treated as a system folder.
 If a folder name does not directly match a configured system, aliases are applied (case-insensitive, normalized to lowercase).
 
 If a system is still unrecognized:
+
 - The folder is renamed using a configurable tag (e.g. `_missingSystemInfo`)
 - The folder is **excluded** from cleanup and deletion logic
 
@@ -106,4 +108,3 @@ The log file location is configurable.
 - ZIP behavior is **explicit and per-system**
 - Existing structured game folders are preserved
 - Unknown systems are tagged, not destroyed
-

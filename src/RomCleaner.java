@@ -18,6 +18,8 @@ public class RomCleaner {
     // Multi-file game subfolders per RomM spec
     static final Set<String> multiFileFolders = Set.of(
             "dlc", "hack", "manual", "mod", "patch", "update", "demo", "translation", "prototype");
+    static final List<Path> pendingSystemDeletes = new ArrayList<>();
+    static final Set<Path> pendingDeletes = new LinkedHashSet<>();
 
     public static void main(String[] args) throws Exception {
         config = new ObjectMapper().readValue(new File("config.json"), Config.class);
@@ -25,26 +27,49 @@ public class RomCleaner {
                 StandardOpenOption.CREATE, StandardOpenOption.APPEND);
 
         Path root = Paths.get(config.rootPath);
-
+        
+        log("====Starting System Processing====");
         try (var stream = Files.list(root)) {
             for (Path dir : stream.filter(Files::isDirectory).toList()) {
                 processSystemFolder(dir);
             }
         }
-
+        log("====Executing Scheduled System Deletes====");
+        for (Path p : pendingSystemDeletes) {
+            try {
+                if (!config.dryRun)
+                    Files.walk(p)
+                            .sorted(Comparator.reverseOrder())
+                            .forEach(path -> {
+                                try {
+                                    Files.deleteIfExists(path);
+                                } catch (IOException e) {
+                                    try {
+                                        log("FAILED DELETE (locked): " + path + " (" + e.getMessage() + ")");
+                                    } catch (IOException ignored) {
+                                    }
+                                }
+                            });
+                log("Deleted system folder tree: " + p);
+            } catch (IOException e) {
+                log("FAILED DELETE TREE: " + p + " (" + e.getMessage() + ")");
+            }
+        }
+        log("====Executing Scheduled Other Deletes====");
+        executeScheduledDeletes();
         log.close();
     }
 
     static void processSystemFolder(Path dir) throws IOException {
-
-        // Step 1: normalize folder name (case handling)
-        Path resolvedDir = resolveSystemDirectory(dir);
-
         // Cleanup Systems with only one txt file at Root
-        if (isSingleTxtSystemFolder(resolvedDir)) {
-            delete(resolvedDir, "System folder contains only a single .txt file");
+        if (isSingleTxtSystemFolder(dir)) {
+            log("Queued system folder delete: " + dir + " (single .txt)");
+            pendingSystemDeletes.add(dir);
             return;
         }
+
+        // Step 1: normalize folder name (case handling)
+        Path resolvedDir = applyLowercaseRule(dir);
 
         String folderName = resolvedDir.getFileName().toString().toLowerCase();
         String resolvedKey = resolveSystemKey(folderName);
@@ -81,7 +106,7 @@ public class RomCleaner {
                 } else if (ext.isEmpty()) {
                     handleNoExtension(file);
                 } else if (!sys.extensions.contains(ext)) {
-                    delete(file, "Invalid extension");
+                    scheduleDelete(file, "Invalid extension");
                 } else {
                     moveRom(file, systemDir, sys);
                 }
@@ -91,7 +116,7 @@ public class RomCleaner {
             @Override
             public FileVisitResult postVisitDirectory(Path d, IOException exc) throws IOException {
                 if (!d.equals(systemDir) && isEmpty(d))
-                    delete(d, "Empty directory");
+                    scheduleDelete(d, "Empty directory");
                 return FileVisitResult.CONTINUE;
             }
         });
@@ -174,7 +199,7 @@ public class RomCleaner {
 
         // ZIP FILE IS CLOSED HERE — SAFE TO DELETE
         if (deleteZip) {
-            delete(zip, deleteReason);
+            scheduleDelete(zip, deleteReason);
         }
     }
 
@@ -186,7 +211,7 @@ public class RomCleaner {
         if (c.equals("e"))
             extract(zf, roms, target, sys);
         if (c.equals("d"))
-            delete(zip, "User deleted ZIP");
+            scheduleDelete(zip, "User deleted ZIP");
     }
 
     static void extract(ZipFile zf, List<ZipEntry> roms,
@@ -226,7 +251,7 @@ public class RomCleaner {
         System.out.print("[R]ename / [D]elete / [S]kip: ");
         String c = in.nextLine().toLowerCase();
         if (c.equals("d"))
-            delete(f, "User deleted");
+            scheduleDelete(f, "User deleted");
         if (c.equals("r")) {
             System.out.print("Extension: ");
             Files.move(f, f.resolveSibling(f.getFileName() + "." + in.nextLine()));
@@ -248,14 +273,40 @@ public class RomCleaner {
         }
     }
 
-    static void delete(Path p, String reason) throws IOException {
-        try {
-            if (!config.dryRun)
-                Files.deleteIfExists(p);
-            log("Deleted: " + p + " (" + reason + ")");
-        } catch (FileSystemException e) {
-            log("FAILED DELETE (locked): " + p + " (" + e.getMessage() + ")");
+    static void executeScheduledDeletes() throws IOException {
+        // Files first
+        for (Path p : pendingDeletes) {
+            if (Files.isRegularFile(p)) {
+                tryDelete(p);
+            }
         }
+
+        // Then directories (deepest first)
+        pendingDeletes.stream()
+                .filter(Files::isDirectory)
+                .sorted(Comparator.comparingInt(p -> -p.getNameCount()))
+                .forEach(RomCleaner::tryDelete);
+    }
+
+    static void tryDelete(Path p) {
+        try {
+            if (!config.dryRun) {
+                Files.deleteIfExists(p);
+                log("Deleted: " + p);
+            }
+        } catch (IOException e) {
+            try {
+                log("FAILED DELETE (locked): " + p + " (" + e.getMessage() + ")");
+            } catch (IOException e1) {
+                System.err.print("Error logging Action, Aborting for Safety");
+                System.exit(400);
+            }
+        }
+    }
+
+    static void scheduleDelete(Path p, String reason) throws IOException {
+        pendingDeletes.add(p);
+        log("Scheduled delete: " + p + " (" + reason + ")");
     }
 
     static Path resolveDup(Path p) {
@@ -295,7 +346,7 @@ public class RomCleaner {
         log.flush();
     }
 
-    static Path resolveSystemDirectory(Path dir) throws IOException {
+    static Path applyLowercaseRule(Path dir) throws IOException {
         String name = dir.getFileName().toString();
         String lower = name.toLowerCase();
 

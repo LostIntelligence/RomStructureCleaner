@@ -4,7 +4,7 @@
   "aliasSystemTag": "_needsRename",
   "rootPath": "F:/roms",
   "logFile": "F:/romcleaner.log",
-  "dryRun": true,
+  "dryRun": false,
   "aliases": {
     "sfc": "snes",
     "super-famicom": "snes",

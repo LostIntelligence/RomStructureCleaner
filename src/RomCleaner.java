@@ -26,8 +26,10 @@ public class RomCleaner {
 
         Path root = Paths.get(config.rootPath);
 
-        for (Path dir : Files.list(root).filter(Files::isDirectory).toList()) {
-            processSystemFolder(dir);
+        try (var stream = Files.list(root)) {
+            for (Path dir : stream.filter(Files::isDirectory).toList()) {
+                processSystemFolder(dir);
+            }
         }
 
         log.close();
@@ -35,59 +37,65 @@ public class RomCleaner {
 
     static void processSystemFolder(Path dir) throws IOException {
 
-    // Step 1: normalize folder name (case handling)
-    Path resolvedDir = resolveSystemDirectory(dir);
+        // Step 1: normalize folder name (case handling)
+        Path resolvedDir = resolveSystemDirectory(dir);
 
-    String folderName = resolvedDir.getFileName().toString().toLowerCase();
-    String resolvedKey = resolveSystemKey(folderName);
-
-    SystemConfig sys = config.systems.get(resolvedKey);
-
-    if (sys == null) {
-        tagUnknownSystem(resolvedDir);
-        return;
-    }
-
-    resolvedDir = tagAliasedSystemIfNeeded(resolvedDir, resolvedKey);
-    final Path systemDir = resolvedDir;
-    Files.walkFileTree(systemDir, new SimpleFileVisitor<>() {
-
-        @Override
-        public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
-            if (!dir.equals(systemDir) && isStructuredGameFolder(dir, sys)) {
-                log("Skipping structured multi-file game folder: " + dir);
-                return FileVisitResult.SKIP_SUBTREE;
-            }
-            return FileVisitResult.CONTINUE;
+        // Cleanup Systems with only one txt file at Root
+        if (isSingleTxtSystemFolder(resolvedDir)) {
+            delete(resolvedDir, "System folder contains only a single .txt file");
+            return;
         }
 
-        @Override
-        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-            if (file.getParent().equals(systemDir))
+        String folderName = resolvedDir.getFileName().toString().toLowerCase();
+        String resolvedKey = resolveSystemKey(folderName);
+
+        SystemConfig sys = config.systems.get(resolvedKey);
+
+        if (sys == null) {
+            tagUnknownSystem(resolvedDir);
+            return;
+        }
+
+        resolvedDir = tagAliasedSystemIfNeeded(resolvedDir, resolvedKey);
+        final Path systemDir = resolvedDir;
+        Files.walkFileTree(systemDir, new SimpleFileVisitor<>() {
+
+            @Override
+            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+                if (!dir.equals(systemDir) && isStructuredGameFolder(dir, sys)) {
+                    log("Skipping structured multi-file game folder: " + dir);
+                    return FileVisitResult.SKIP_SUBTREE;
+                }
                 return FileVisitResult.CONTINUE;
-
-            String ext = ext(file);
-
-            if (ext.equals("zip")) {
-                handleZip(file, systemDir, sys);
-            } else if (ext.isEmpty()) {
-                handleNoExtension(file);
-            } else if (!sys.extensions.contains(ext)) {
-                delete(file, "Invalid extension");
-            } else {
-                moveRom(file, systemDir, sys);
             }
-            return FileVisitResult.CONTINUE;
-        }
 
-        @Override
-        public FileVisitResult postVisitDirectory(Path d, IOException exc) throws IOException {
-            if (!d.equals(systemDir) && isEmpty(d))
-                delete(d, "Empty directory");
-            return FileVisitResult.CONTINUE;
-        }
-    });
-}
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                if (file.getParent().equals(systemDir))
+                    return FileVisitResult.CONTINUE;
+
+                String ext = ext(file);
+
+                if (ext.equals("zip")) {
+                    handleZip(file, systemDir, sys);
+                } else if (ext.isEmpty()) {
+                    handleNoExtension(file);
+                } else if (!sys.extensions.contains(ext)) {
+                    delete(file, "Invalid extension");
+                } else {
+                    moveRom(file, systemDir, sys);
+                }
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult postVisitDirectory(Path d, IOException exc) throws IOException {
+                if (!d.equals(systemDir) && isEmpty(d))
+                    delete(d, "Empty directory");
+                return FileVisitResult.CONTINUE;
+            }
+        });
+    }
 
     // ===== Multi-file game detection =====
     static boolean isStructuredGameFolder(Path folder, SystemConfig sys) throws IOException {
@@ -114,48 +122,59 @@ public class RomCleaner {
 
     // ===== ZIP HANDLING =====
     static void handleZip(Path zip, Path target, SystemConfig sys) throws IOException {
-        ZipFile zf;
-        try {
-            zf = new ZipFile(zip.toFile());
-        } catch (ZipException e) {
-            log("Corrupt or invalid ZIP skipped: " + zip + " (" + e.getMessage() + ")");
-            if (sys.zipPolicy.equals("forbid") || sys.zipPolicy.equals("extract")) {
-                delete(zip, "Invalid ZIP (policy forbids ZIP)");
+        boolean deleteZip = false;
+        String deleteReason = null;
+
+        try (ZipFile zf = new ZipFile(zip.toFile())) {
+
+            List<ZipEntry> roms = new ArrayList<>();
+            List<ZipEntry> junk = new ArrayList<>();
+
+            for (ZipEntry e : Collections.list(zf.entries())) {
+                if (e.isDirectory())
+                    continue;
+                if (sys.extensions.contains(ext(e.getName())))
+                    roms.add(e);
+                else
+                    junk.add(e);
             }
-            return;
-        }
 
-        List<ZipEntry> roms = new ArrayList<>();
-        List<ZipEntry> junk = new ArrayList<>();
-
-        for (ZipEntry e : Collections.list(zf.entries())) {
-            if (e.isDirectory())
-                continue;
-            if (sys.extensions.contains(ext(e.getName())))
-                roms.add(e);
-            else
-                junk.add(e);
-        }
-
-        if (roms.isEmpty()) {
-            delete(zip, "ZIP contained no valid ROMs");
-            return;
-        }
-
-        switch (sys.zipPolicy) {
-            case "forbid" -> {
-                extract(zf, roms, target, sys);
-                delete(zip, "ZIP forbidden");
+            if (roms.isEmpty()) {
+                deleteZip = true;
+                deleteReason = "ZIP contained no valid ROMs";
+                return;
             }
-            case "extract" -> {
-                extract(zf, roms, target, sys);
-                delete(zip, "ZIP extracted");
-            }
-            case "allow" -> {
-                if (!junk.isEmpty() || roms.size() > 1) {
-                    promptZipDecision(zip, zf, roms, target, sys);
+
+            switch (sys.zipPolicy) {
+                case "forbid" -> {
+                    extract(zf, roms, target, sys);
+                    deleteZip = true;
+                    deleteReason = "ZIP forbidden";
+                }
+                case "extract" -> {
+                    extract(zf, roms, target, sys);
+                    deleteZip = true;
+                    deleteReason = "ZIP extracted";
+                }
+                case "allow" -> {
+                    if (!junk.isEmpty() || roms.size() > 1) {
+                        promptZipDecision(zip, zf, roms, target, sys);
+                    }
                 }
             }
+
+        } catch (ZipException e) {
+            if (sys.zipPolicy.equals("forbid") || sys.zipPolicy.equals("extract")) {
+                deleteZip = true;
+                deleteReason = "Invalid ZIP (policy forbids ZIP)";
+            } else {
+                log("Corrupt or invalid ZIP skipped: " + zip + " (" + e.getMessage() + ")");
+            }
+        }
+
+        // ZIP FILE IS CLOSED HERE — SAFE TO DELETE
+        if (deleteZip) {
+            delete(zip, deleteReason);
         }
     }
 
@@ -175,7 +194,7 @@ public class RomCleaner {
         for (ZipEntry e : roms) {
             Path out = resolveDup(target.resolve(cleanName(e.getName(), sys)));
             try (InputStream is = zf.getInputStream(e)) {
-                Files.copy(is, out);
+                Files.copy(is, out, StandardCopyOption.REPLACE_EXISTING);
             }
             log("Extracted: " + out);
         }
@@ -215,7 +234,7 @@ public class RomCleaner {
     }
 
     static void tagUnknownSystem(Path dir) throws IOException {
-        if (dir.getFileName().toString().endsWith(config.unknownSystemTag))
+        if (dir.getFileName().toString().toLowerCase().endsWith(config.unknownSystemTag.toLowerCase()))
             return;
         Path tagged = dir.resolveSibling(dir.getFileName() + config.unknownSystemTag);
         if (!config.dryRun)
@@ -230,9 +249,13 @@ public class RomCleaner {
     }
 
     static void delete(Path p, String reason) throws IOException {
-        if (!config.dryRun)
-            Files.deleteIfExists(p);
-        log("Deleted: " + p + " (" + reason + ")");
+        try {
+            if (!config.dryRun)
+                Files.deleteIfExists(p);
+            log("Deleted: " + p + " (" + reason + ")");
+        } catch (FileSystemException e) {
+            log("FAILED DELETE (locked): " + p + " (" + e.getMessage() + ")");
+        }
     }
 
     static Path resolveDup(Path p) {
@@ -301,7 +324,7 @@ public class RomCleaner {
             return systemDir;
 
         // Already tagged → avoid infinite renames
-        if (folderName.contains(config.aliasSystemTag))
+        if (folderName.contains(config.aliasSystemTag.toLowerCase()))
             return systemDir;
 
         // Build tagged name: original_needsRename_canonical
@@ -317,6 +340,25 @@ public class RomCleaner {
         log("Tagged aliased system folder: " + systemDir + " → " + taggedDir);
 
         return taggedDir;
+    }
+
+    static boolean isSingleTxtSystemFolder(Path systemDir) throws IOException {
+        int fileCount = 0;
+        try (DirectoryStream<Path> ds = Files.newDirectoryStream(systemDir)) {
+            for (Path p : ds) {
+                if (Files.isDirectory(p))
+                    return false;
+
+                if (Files.isRegularFile(p)) {
+                    fileCount++;
+                    if (!ext(p).equals("txt"))
+                        return false;
+                }
+                if (fileCount > 1)
+                    return false;
+            }
+        }
+        return fileCount == 1;
     }
 
     // ===== CONFIG =====

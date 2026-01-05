@@ -2,7 +2,7 @@
   "forceLowercaseFolders": true,
   "unknownSystemTag": "_missingSystemInfo",
   "aliasSystemTag": "_needsRename",
-  "rootPath": "F:/roms",
+  "rootPath": "F:/roms2",
   "logFile": "F:/romcleaner.log",
   "dryRun": false,
   "aliases": {

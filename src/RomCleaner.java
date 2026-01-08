@@ -203,34 +203,27 @@ public class RomCleaner {
     }
 
     static void extract(ZipFile zf, List<ZipEntry> roms,
-            Path target, SystemConfig sys) throws IOException {
+            Path systemRoot, SystemConfig sys) throws IOException {
 
         for (ZipEntry e : roms) {
-            String clean = cleanName(e.getName(), sys);
-            Path canonicalOut = target.resolve(clean);
 
-            // Duplicate detection BEFORE resolveDup
-            if (Files.exists(canonicalOut)) {
-                if (sameSize(e, canonicalOut)) {
-                    log("ZIP ROM duplicate skipped: " + canonicalOut);
-                    return; // single-ROM ZIP → safe to stop
-                }
+            // 🔒 CRITICAL: flatten ZIP paths
+            String rawName = Paths.get(e.getName()).getFileName().toString();
 
-                // Same name, different ROM → keep both
-                Path deduped = resolveDup(canonicalOut);
-                try (InputStream is = zf.getInputStream(e)) {
-                    Files.copy(is, deduped);
-                }
-                log("Extracted (name collision): " + deduped);
-                return;
-            }
+            String cleaned = sys.rommNaming
+                    ? cleanName(rawName, sys)
+                    : rawName;
 
-            // Normal extraction
+            Path out = resolveDup(systemRoot.resolve(cleaned));
+
+            // Parent is ALWAYS the system root
+            Files.createDirectories(out.getParent());
+
             try (InputStream is = zf.getInputStream(e)) {
-                Files.copy(is, canonicalOut);
+                Files.copy(is, out, StandardCopyOption.REPLACE_EXISTING);
             }
-            log("Extracted: " + canonicalOut);
-            return;
+
+            log("Extracted: " + out);
         }
     }
 
@@ -296,6 +289,7 @@ public class RomCleaner {
         String c = in.nextLine().toLowerCase();
         if (c.equals("d"))
             scheduleDelete(f, "User deleted");
+            System.out.print("Deleting...");
         if (c.equals("r")) {
             System.out.print("Extension: ");
             Files.move(f, f.resolveSibling(f.getFileName() + "." + in.nextLine()));

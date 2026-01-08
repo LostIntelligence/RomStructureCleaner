@@ -2,12 +2,14 @@
   "forceLowercaseFolders": true,
   "unknownSystemTag": "_missingSystemInfo",
   "aliasSystemTag": "_needsRename",
-  "rootPath": "F:/roms2",
+  "rootPath": "F:/roms",
   "logFile": "F:/romcleaner.log",
   "dryRun": false,
   "aliases": {
-    "sfc": "snes",
-    "super-famicom": "snes",
+    "sfc": "sfam",
+    "ngp": "neo-geo-pocket",
+    "ngpc": "neo-geo-pocket-color",
+    "super-famicom": "sfam",
     "ps1": "psx",
     "playstation": "psx",
     "md": "genesis",
@@ -26,6 +28,53 @@
     "wonderswancolor": "wonderswan-color"
   },
   "systems": {
+    "neo-geo-pocket-color": {
+      "extensions": [
+        "ngc"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "famicom": {
+      "extensions": [
+        "nes"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "neo-geo-pocket": {
+      "extensions": [
+        "ngp"
+      ],
+      "zipPolicy": "forbid"
+    },
+    "gc": {
+      "extensions": [
+        "iso",
+        "gcm"
+      ],
+      "zipPolicy": "allow"
+    },
+    "dc": {
+      "extensions": [
+        "iso",
+        "gdi"
+      ],
+      "zipPolicy": "allow"
+    },
+    "mac": {
+      "extensions": [
+        "iso",
+        "dmg"
+      ],
+      "zipPolicy": "allow"
+    },
+    "sfam": {
+      "extensions": [
+        "smc",
+        "sfc",
+        "fig"
+      ],
+      "zipPolicy": "forbid"
+    },
     "nes": {
       "extensions": [
         "nes"
@@ -261,14 +310,6 @@
         "bin",
         "cue",
         "iso",
-        "chd"
-      ],
-      "zipPolicy": "forbid"
-    },
-    "dreamcast": {
-      "extensions": [
-        "gdi",
-        "cdi",
         "chd"
       ],
       "zipPolicy": "forbid"
